@@ -1,0 +1,5 @@
+domain: mason.dev
+layout: go.kubebuilder.io/v3
+projectName: project
+repo: mason.dev/operators
+version: 3-alpha
