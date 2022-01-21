@@ -20,14 +20,17 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-logr/logr"
+	"sort"
+	"time"
+
+	"github.com/robfig/cron"
 	kbatch "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	ref "k8s.io/client-go/tools/reference"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sort"
-	"time"
 
 	batchv1 "mason.dev/operators/api/v1"
 )
@@ -54,9 +57,11 @@ var (
 	scheduledTimeAnnotation = "batch.tutorial.kubebuilder.io/scheduled-at"
 )
 
-//+kubebuilder:rbac:groups=batch.mason.dev,resources=cronjobs,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=batch.mason.dev,resources=cronjobs/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=batch.mason.dev,resources=cronjobs/finalizers,verbs=update
+//+kubebuilder:rbac:groups=batch.tutorial.kubebuilder.io,resources=cronjobs,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=batch.tutorial.kubebuilder.io,resources=cronjobs/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=batch.tutorial.kubebuilder.io,resources=cronjobs/finalizers,verbs=update
+//+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=batch,resources=jobs/status,verbs=get
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -256,16 +261,6 @@ func (r *CronJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 		return lastMissed, sched.Next(now), nil
 	}
-	// figure out the next times that we need to create
-	// jobs at (or anything we missed).
-	missedRun, nextRun, err := getNextSchedule(&cronJob, r.Now())
-	if err != nil {
-		log.Error(err, "unable to figure out CronJob schedule")
-		// we don't really care about requeuing until we get an update that
-		// fixes the schedule, so don't return an error
-		return ctrl.Result{}, nil
-	}
-
 	// figure out the next times that we need to create
 	// jobs at (or anything we missed).
 	missedRun, nextRun, err := getNextSchedule(&cronJob, r.Now())
