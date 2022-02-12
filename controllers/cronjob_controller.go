@@ -209,7 +209,7 @@ func (r *CronJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	getNextSchedule := func(cronJob *batchv1.CronJob, now time.Time) (lastMissed time.Time, next time.Time, err error) {
-		sched, err := cron.ParseStandard(cronJob.Spec.Schedule)
+		shed, err := cron.ParseStandard(cronJob.Spec.Schedule)
 		if err != nil {
 			return time.Time{}, time.Time{}, fmt.Errorf("Unparseable schedule %q: %v", cronJob.Spec.Schedule, err)
 		}
@@ -232,11 +232,11 @@ func (r *CronJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			}
 		}
 		if earliestTime.After(now) {
-			return time.Time{}, sched.Next(now), nil
+			return time.Time{}, shed.Next(now), nil
 		}
 
 		starts := 0
-		for t := sched.Next(earliestTime); !t.After(now); t = sched.Next(t) {
+		for t := shed.Next(earliestTime); !t.After(now); t = shed.Next(t) {
 			lastMissed = t
 			// An object might miss several starts. For example, if
 			// controller gets wedged on Friday at 5:01pm when everyone has
@@ -258,7 +258,7 @@ func (r *CronJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 				return time.Time{}, time.Time{}, fmt.Errorf("Too many missed start times (> 100). Set or decrease .spec.startingDeadlineSeconds or check clock skew.")
 			}
 		}
-		return lastMissed, sched.Next(now), nil
+		return lastMissed, shed.Next(now), nil
 	}
 	// figure out the next times that we need to create
 	// jobs at (or anything we missed).
